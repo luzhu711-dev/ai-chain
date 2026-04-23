@@ -5,19 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>AI 产业价值链</title>
   <style>
     * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0; padding: 0;
-      background: #f2f2f7;
+      background: #fbfbfd;
       color: #1c1c1e;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
-      font-size: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+      font-size: 14px;
       letter-spacing: -0.01em;
-      min-height: 100vh;
-      padding-bottom: env(safe-area-inset-bottom);
+      overscroll-behavior: none;
     }
     header {
       position: sticky;
@@ -27,103 +25,146 @@
       backdrop-filter: saturate(180%) blur(16px);
       -webkit-backdrop-filter: saturate(180%) blur(16px);
       padding: 14px 16px 10px;
-      padding-top: calc(14px + env(safe-area-inset-top));
+      padding-top: calc(12px + env(safe-area-inset-top));
       border-bottom: 0.5px solid rgba(0,0,0,0.08);
     }
     h1 {
       font-family: "SF Pro Display", -apple-system, sans-serif;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
       margin: 0;
       letter-spacing: -0.02em;
     }
-    .sub {
+    .sub-title {
       color: #8e8e93;
-      font-size: 12px;
-      margin-top: 3px;
+      font-size: 11.5px;
+      margin-top: 2px;
     }
     .legend {
       display: flex;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 8px;
+      margin-top: 8px;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
-      padding-bottom: 2px;
+      scrollbar-width: none;
     }
     .legend::-webkit-scrollbar { display: none; }
     .legend-chip {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
+      gap: 5px;
+      padding: 3px 9px;
       background: #e5e5ea;
-      border-radius: 20px;
-      font-size: 12px;
+      border-radius: 16px;
+      font-size: 11px;
       color: #3a3a3c;
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .legend-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
     .dot-energy { background: #ff9500; }
     .dot-compute { background: #007aff; }
     .dot-money { background: #30d158; }
     .dot-warn { background: #ff3b30; }
 
-    main {
-      padding: 12px 14px 80px;
+    #canvas {
+      position: relative;
+      padding-bottom: 60px;
+    }
+    svg { display: block; width: 100%; user-select: none; }
+
+    /* SVG elements */
+    .trunk { fill: none; stroke: #1c1c1e; stroke-width: 1.8; }
+    .arrow-marker { fill: #1c1c1e; }
+    .branch { fill: none; stroke: #c7c7cc; stroke-width: 1.2; }
+
+    .node circle {
+      fill: white;
+      stroke-width: 1.5;
+      transition: stroke-width 0.2s;
+      filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.05));
+    }
+    .node.layer circle { stroke: #1c1c1e; }
+    .node.layer.expanded circle { stroke-width: 2; }
+    .node.active circle {
+      stroke-width: 2.4;
+      filter: drop-shadow(0 3px 8px rgba(0,122,255,0.25));
+    }
+    .node.energy circle { stroke: #ff9500; }
+    .node.compute circle { stroke: #007aff; }
+    .node.money circle { stroke: #30d158; }
+    .node.warn circle { stroke: #ff3b30; fill: #fff6f6; }
+    .node.energy.expanded circle { fill: #fff9ef; }
+    .node.compute.expanded circle { fill: #f0f7ff; }
+    .node.money.expanded circle { fill: #f0fdf4; }
+
+    .node text {
+      fill: #1c1c1e;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      pointer-events: none;
+    }
+    .node.sub text { font-size: 12.5px; font-weight: 500; fill: #3a3a3c; }
+    .node.layer .layer-id {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      fill: #8e8e93;
+    }
+    .count-badge {
+      fill: #8e8e93;
+      font-size: 10.5px;
+      font-variant-numeric: tabular-nums;
     }
 
-    /* Layer card */
-    .layer {
-      background: white;
-      border-radius: 14px;
-      margin-bottom: 10px;
-      overflow: hidden;
-      box-shadow: 0 0.5px 0 rgba(0,0,0,0.05);
+    /* Bottom sheet */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s cubic-bezier(0.2, 0, 0, 1);
+      z-index: 20;
     }
-    .layer-head {
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      background: #f2f2f7;
+      border-radius: 16px 16px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+      z-index: 21;
+      max-height: 78vh;
       display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 16px;
-      min-height: 56px;
-      background: white;
-      border: none;
-      width: 100%;
-      text-align: left;
-      cursor: pointer;
-      font: inherit;
-      color: inherit;
-      transition: background 0.12s;
+      flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom);
+      box-shadow: 0 -12px 40px rgba(0,0,0,0.18);
     }
-    .layer-head:active { background: #f2f2f7; }
-    .layer-side-bar {
-      width: 4px;
-      align-self: stretch;
-      border-radius: 2px;
-      flex-shrink: 0;
+    .sheet.open { transform: translateY(0); }
+    .sheet-handle {
+      margin: 8px auto 4px;
+      width: 36px; height: 5px;
+      border-radius: 3px;
+      background: #c7c7cc;
     }
-    .bar-energy { background: #ff9500; }
-    .bar-compute { background: #007aff; }
-    .bar-money { background: #30d158; }
-    .bar-warn { background: #ff3b30; }
-    .layer-main { flex: 1; min-width: 0; }
-    .layer-id {
-      font-size: 11px;
-      color: #8e8e93;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      margin-bottom: 2px;
+    .sheet-header {
+      padding: 12px 20px 14px;
+      border-bottom: 0.5px solid rgba(0,0,0,0.1);
     }
-    .layer-name {
-      font-size: 16px;
-      font-weight: 600;
+    .sheet-title {
+      font-size: 17px;
+      font-weight: 700;
       letter-spacing: -0.02em;
       color: #1c1c1e;
     }
-    .layer-name .warn-icon { color: #ff3b30; margin-left: 2px; font-size: 12px; }
+    .sheet-sub {
+      font-size: 12px;
+      color: #8e8e93;
+      margin-top: 2px;
+    }
     .bn-meter {
       display: inline-flex;
       gap: 2px;
@@ -137,88 +178,28 @@
       background: #d1d1d6;
     }
     .bn-bar.on { background: currentColor; }
-    .layer-count {
-      font-size: 13px;
-      color: #8e8e93;
-      font-variant-numeric: tabular-nums;
-    }
-    .chevron {
-      width: 16px; height: 16px;
-      color: #c7c7cc;
-      transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
-      flex-shrink: 0;
-    }
-    .layer.open .chevron { transform: rotate(90deg); }
 
-    /* Subs inside layer */
-    .subs {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s cubic-bezier(0.2, 0, 0, 1);
-      background: #f9f9fb;
+    .ticker-list {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 0 16px;
     }
-    .layer.open .subs { max-height: 2000px; }
-    .sub {
+    .ticker-row {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 12px 16px 12px 30px;
-      border-top: 0.5px solid rgba(0,0,0,0.06);
-      min-height: 48px;
-      cursor: pointer;
-      background: transparent;
-      border-left: none;
-      border-right: none;
-      border-bottom: none;
-      width: 100%;
-      text-align: left;
-      font: inherit;
-      color: inherit;
-      transition: background 0.12s;
-    }
-    .sub:active { background: rgba(0,0,0,0.04); }
-    .sub-name {
-      flex: 1;
-      font-size: 14.5px;
-      color: #1c1c1e;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-    }
-    .sub-count {
-      font-size: 13px;
-      color: #8e8e93;
-      background: #e5e5ea;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-variant-numeric: tabular-nums;
-      min-width: 22px;
-      text-align: center;
-    }
-
-    /* Ticker list inside sub */
-    .tickers {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s cubic-bezier(0.2, 0, 0, 1);
+      padding: 12px 20px;
       background: white;
+      border-bottom: 0.5px solid rgba(0,0,0,0.06);
+      min-height: 48px;
     }
-    .sub-wrapper.open .tickers {
-      max-height: 600px;
-    }
-    .ticker {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 11px 16px 11px 44px;
-      border-top: 0.5px solid rgba(0,0,0,0.05);
-      min-height: 44px;
-    }
+    .ticker-row:first-child { border-top: 0.5px solid rgba(0,0,0,0.06); }
     .ticker-code {
       font-family: "SF Mono", ui-monospace, Menlo, monospace;
       font-weight: 600;
       color: #007aff;
       font-size: 13px;
-      min-width: 78px;
+      min-width: 80px;
     }
     .ticker-name {
       flex: 1;
@@ -237,21 +218,14 @@
     }
     .ticker-tag.pos { background: #e4fbeb; color: #148f3e; }
     .ticker-tag.watch { background: #fff2df; color: #b15a00; }
-    .empty {
-      padding: 14px 16px 14px 44px;
-      font-size: 13px;
+    .empty-state {
+      padding: 20px;
+      text-align: center;
       color: #c7c7cc;
+      font-size: 13px;
       font-style: italic;
     }
 
-    /* Chain color token inheritance */
-    .layer.energy .bn-bar.on { background: #ff9500; }
-    .layer.compute .bn-bar.on { background: #007aff; }
-    .layer.money .bn-bar.on { background: #30d158; }
-    .layer.warn .bn-bar.on { background: #ff3b30; }
-    .layer.warn .layer-name { color: #1c1c1e; }
-
-    /* Footer */
     footer {
       text-align: center;
       padding: 20px 14px 30px;
@@ -264,7 +238,7 @@
 <body>
   <header>
     <h1>AI 产业价值链</h1>
-    <div class="sub">10 层 · 上游 → 下游 · 节点紧缺度 1–5</div>
+    <div class="sub-title">点层节点展开子功能 · 点子节点看候选标的</div>
     <div class="legend">
       <span class="legend-chip"><span class="legend-dot dot-energy"></span>能量链</span>
       <span class="legend-chip"><span class="legend-dot dot-compute"></span>算力链</span>
@@ -273,10 +247,20 @@
     </div>
   </header>
 
-  <main id="app"></main>
+  <div id="canvas"></div>
+
+  <div class="sheet-backdrop" id="backdrop"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="sheetTitle">—</div>
+      <div class="sheet-sub" id="sheetSub">—</div>
+    </div>
+    <div class="ticker-list" id="tickerList"></div>
+  </div>
 
   <footer>
-    v1 · <a href="index.html">切换桌面版</a>
+    v1 · <a href="index.html">桌面版</a>
   </footer>
 
 <script>
@@ -308,25 +292,25 @@ const LAYERS = [
   ]},
   { id:"L2", name:"可调度电力", chain:"energy", bn:4, children:[
     { name:"核电 IPP", bn:5, tickers:[
-      {code:"CEG", name:"Constellation（AlphaEngine 5/5 首推）", status:"watch"},
-      {code:"VST", name:"Vistra（AI 叙事是核电·主业气电）", status:"watch"},
+      {code:"CEG", name:"Constellation（5/5 首推）", status:"watch"},
+      {code:"VST", name:"Vistra（AI 叙事是核电）", status:"watch"},
       {code:"TLN", name:"Talen Energy", status:"watch"},
     ]},
     { name:"SMR", bn:3, tickers:[
-      {code:"OKLO", name:"Oklo（纯 SMR）", status:"watch"},
-      {code:"SMR", name:"NuScale（纯 SMR）", status:"watch"},
-      {code:"BWXT", name:"BWX Tech（海军核主业·SMR 分部）", status:"todo"},
+      {code:"OKLO", name:"Oklo", status:"watch"},
+      {code:"SMR", name:"NuScale", status:"watch"},
+      {code:"BWXT", name:"BWX Tech", status:"todo"},
     ]},
     { name:"天然气 CCGT", bn:3, tickers:[
-      {code:"GEV", name:"GE Vernova（燃气轮机主业 48%）", status:"todo"},
+      {code:"GEV", name:"GE Vernova（燃气轮机主业）", status:"todo"},
       {code:"VST", name:"Vistra（气电 25GW 主业）", status:"watch"},
     ]},
     { name:"储能 + 可再生", bn:4, tickers:[
-      {code:"TSLA", name:"Tesla Megapack（储能是分部）", status:"todo"},
-      {code:"FLNC", name:"Fluence Energy（电网级储能专家）", status:"todo"},
-      {code:"BE", name:"Bloom Energy（燃料电池 + 储能）", status:"todo"},
-      {code:"3750.HK", name:"宁德时代 H（AIDC 储能新兴）", status:"watch"},
-      {code:"FSLR", name:"First Solar（光伏·DC 配套）", status:"todo"},
+      {code:"TSLA", name:"Tesla Megapack", status:"todo"},
+      {code:"FLNC", name:"Fluence Energy", status:"todo"},
+      {code:"BE", name:"Bloom Energy", status:"todo"},
+      {code:"3750.HK", name:"宁德时代 H", status:"watch"},
+      {code:"FSLR", name:"First Solar", status:"todo"},
     ]},
     { name:"柴发备用", bn:2, tickers:[
       {code:"2338.HK", name:"潍柴动力 H", status:"todo"},
@@ -335,26 +319,26 @@ const LAYERS = [
   { id:"L3", name:"并网输配电", chain:"warn", bn:5, warn:true, children:[
     { name:"输电线路", bn:4, tickers:[] },
     { name:"变压器", bn:5, warn:true, tickers:[
-      {code:"HTA", name:"Hitachi Energy（电网专家·主业）", status:"todo"},
-      {code:"GEV", name:"GE Vernova（电气化分部含变压器）", status:"todo"},
+      {code:"HTA", name:"Hitachi Energy（主业）", status:"todo"},
+      {code:"GEV", name:"GE Vernova（电气化分部）", status:"todo"},
     ]},
     { name:"变电站", bn:3, tickers:[] },
     { name:"并网审批", bn:5, warn:true, tickers:[] },
   ]},
   { id:"L4", name:"DC 电力热管理", chain:"energy", bn:3, children:[
     { name:"UPS / 配电", bn:3, tickers:[
-      {code:"VRT", name:"Vertiv（DC 关键电源·主业）", status:"watch"},
-      {code:"ETN", name:"Eaton（电气广谱·DC 分部）", status:"watch"},
-      {code:"SBGSY", name:"Schneider（电气广谱·DC 分部）", status:"todo"},
-      {code:"3393.HK", name:"威胜集团（AIDC 子公司拟独立上市）", status:"todo"},
+      {code:"VRT", name:"Vertiv（主业）", status:"watch"},
+      {code:"ETN", name:"Eaton（DC 分部）", status:"watch"},
+      {code:"SBGSY", name:"Schneider（DC 分部）", status:"todo"},
+      {code:"3393.HK", name:"威胜集团（AIDC 子公司）", status:"todo"},
     ]},
     { name:"备用电源", bn:2, tickers:[
-      {code:"CMI", name:"Cummins（卡车柴油机主业）", status:"todo"},
-      {code:"2338.HK", name:"潍柴动力 H（SOFC 新兴）", status:"todo"},
+      {code:"CMI", name:"Cummins", status:"todo"},
+      {code:"2338.HK", name:"潍柴动力 H", status:"todo"},
     ]},
     { name:"液冷 / CDU", bn:4, tickers:[
       {code:"VRT", name:"Vertiv（热管理分部）", status:"watch"},
-      {code:"MOD", name:"Modine（热管理·主业）", status:"todo"},
+      {code:"MOD", name:"Modine（主业）", status:"todo"},
     ]},
     { name:"HVAC 散热", bn:2, tickers:[] },
   ]},
@@ -384,25 +368,25 @@ const LAYERS = [
     ]},
     { name:"HBM 内存", bn:5, tickers:[
       {code:"DRAM", name:"Roundhill Memory ETF", status:"pos"},
-      {code:"MU", name:"Micron（DRAM + HBM）", status:"watch"},
-      {code:"000660.KS", name:"SK 海力士（HBM 龙头）", status:"watch"},
-      {code:"005930.KS", name:"Samsung（HBM3E 追赶）", status:"todo"},
+      {code:"MU", name:"Micron", status:"watch"},
+      {code:"000660.KS", name:"SK 海力士（龙头）", status:"watch"},
+      {code:"005930.KS", name:"Samsung（追赶）", status:"todo"},
     ]},
     { name:"NAND 存储", bn:4, tickers:[
-      {code:"SNDK", name:"SanDisk 闪迪（纯 NAND 龙头）", status:"watch"},
-      {code:"MU", name:"Micron（NAND 次要分部）", status:"watch"},
-      {code:"000660.KS", name:"SK 海力士（NAND + Solidigm）", status:"watch"},
-      {code:"005930.KS", name:"Samsung（NAND 份额第一）", status:"todo"},
+      {code:"SNDK", name:"SanDisk 闪迪", status:"watch"},
+      {code:"MU", name:"Micron（NAND 分部）", status:"watch"},
+      {code:"000660.KS", name:"SK 海力士", status:"watch"},
+      {code:"005930.KS", name:"Samsung", status:"todo"},
     ]},
   ]},
   { id:"L6", name:"核心算力器件", chain:"compute", bn:4, children:[
     { name:"GPU / 加速器", bn:5, tickers:[
-      {code:"NVDA", name:"NVIDIA（GPU 主业 85%+）", status:"watch"},
-      {code:"AMD", name:"AMD MI（加速器是 AI 分部）", status:"watch"},
+      {code:"NVDA", name:"NVIDIA", status:"watch"},
+      {code:"AMD", name:"AMD MI", status:"watch"},
     ]},
     { name:"定制 ASIC", bn:4, tickers:[
       {code:"AVGO", name:"Broadcom（Google TPU + Meta MTIA）", status:"pos"},
-      {code:"MRVL", name:"Marvell（AWS Trainium + MS Maia）", status:"watch"},
+      {code:"MRVL", name:"Marvell（AWS + MS）", status:"watch"},
     ]},
     { name:"CPU / Host", bn:3, tickers:[
       {code:"AMD", name:"AMD EPYC", status:"watch"},
@@ -422,19 +406,19 @@ const LAYERS = [
       {code:"AVGO", name:"Broadcom Tomahawk", status:"pos"},
     ]},
     { name:"光模块", bn:5, tickers:[
-      {code:"06166.HK", name:"剑桥科技（光模块主业）", status:"pos"},
-      {code:"COHR", name:"Coherent（光通信主业）", status:"watch"},
-      {code:"LITE", name:"Lumentum（光通信主业）", status:"watch"},
-      {code:"FN", name:"Fabrinet（光学制造主业）", status:"todo"},
-      {code:"GLW", name:"Corning（显示主业·光通信 30% 分部）", status:"watch"},
+      {code:"06166.HK", name:"剑桥科技", status:"pos"},
+      {code:"COHR", name:"Coherent", status:"watch"},
+      {code:"LITE", name:"Lumentum", status:"watch"},
+      {code:"FN", name:"Fabrinet", status:"todo"},
+      {code:"GLW", name:"Corning（光通信分部）", status:"watch"},
     ]},
     { name:"AEC / DAC", bn:3, tickers:[
       {code:"CRDO", name:"Credo", status:"watch"},
     ]},
     { name:"CPO", bn:5, tickers:[
-      {code:"AVGO", name:"Broadcom CPO（ISSCC 2026 专题）", status:"pos"},
+      {code:"AVGO", name:"Broadcom CPO", status:"pos"},
       {code:"COHR", name:"Coherent", status:"watch"},
-      {code:"NVDA", name:"NVIDIA（CPO Roadmap 正式）", status:"watch"},
+      {code:"NVDA", name:"NVIDIA（CPO Roadmap）", status:"watch"},
     ]},
     { name:"连接器 / PCB", bn:3, tickers:[
       {code:"ALAB", name:"Astera Labs", status:"watch"},
@@ -442,8 +426,8 @@ const LAYERS = [
   ]},
   { id:"L8", name:"系统集成 / DC", chain:"compute", bn:2, children:[
     { name:"服务器 OEM/ODM", bn:2, tickers:[
-      {code:"SMCI", name:"Supermicro（AI 服务器主业）", status:"watch"},
-      {code:"DELL", name:"Dell（PC 主业·ISG 是分部）", status:"watch"},
+      {code:"SMCI", name:"Supermicro", status:"watch"},
+      {code:"DELL", name:"Dell（ISG 分部）", status:"watch"},
     ]},
     { name:"机柜级系统", bn:3, tickers:[] },
     { name:"Colo / REIT", bn:2, tickers:[
@@ -457,12 +441,12 @@ const LAYERS = [
   ]},
   { id:"L9", name:"平台 / 模型 / 货币化", chain:"money", bn:3, children:[
     { name:"云 & 推理平台", bn:3, tickers:[
-      {code:"AMZN", name:"AWS（零售主业·AWS 分部）", status:"pos"},
-      {code:"MSFT", name:"Azure（办公主业·Azure 分部）", status:"watch"},
-      {code:"GOOGL", name:"GCP（广告主业·Cloud 分部）", status:"watch"},
+      {code:"AMZN", name:"AWS（分部）", status:"pos"},
+      {code:"MSFT", name:"Azure（分部）", status:"watch"},
+      {code:"GOOGL", name:"GCP（分部）", status:"watch"},
     ]},
     { name:"基础模型", bn:3, tickers:[
-      {code:"META", name:"Meta Llama（广告主业·Llama 开源）", status:"pos"},
+      {code:"META", name:"Meta Llama", status:"pos"},
       {code:"DXYZ", name:"Anthropic / xAI proxy", status:"pos"},
     ]},
     { name:"中间件", bn:2, tickers:[] },
@@ -475,7 +459,7 @@ const LAYERS = [
     ]},
     { name:"垂直软件", bn:2, tickers:[] },
     { name:"机器人 / AV", bn:3, tickers:[
-      {code:"TSLA", name:"Tesla（EV 主业·FSD/Optimus 分部）", status:"todo"},
+      {code:"TSLA", name:"Tesla（FSD/Optimus 分部）", status:"todo"},
     ]},
     { name:"政府 / 国防", bn:3, tickers:[
       {code:"PLTR", name:"Palantir", status:"watch"},
@@ -485,73 +469,185 @@ const LAYERS = [
 
 const statusOrder = { pos:0, watch:1, todo:2 };
 const statusLabel = { pos:"持仓", watch:"关注", todo:"候选" };
+const chainColor = { energy:"#ff9500", compute:"#007aff", money:"#30d158", warn:"#ff3b30" };
 
-function bnMeter(bn, chain) {
-  let html = `<span class="bn-meter" style="color:${chainColor(chain)}">`;
-  for (let i = 1; i <= 5; i++) {
-    html += `<span class="bn-bar ${i <= bn ? 'on' : ''}"></span>`;
+const expanded = new Set();
+const canvas = document.getElementById('canvas');
+
+// Radius from bn
+function rForLayer(bn) { return 13 + (bn - 2) * 2; }     // bn2→13, bn5→19
+function rForSub(bn)   { return 8 + (bn - 2) * 1.5; }    // bn2→8,  bn5→12.5
+
+const TRUNK_X = 50;              // trunk vertical x
+const SUB_X   = 150;             // sub circles x (right of trunk)
+const TOP_PAD = 40;
+const LAYER_SPACING_COLLAPSED = 90;
+const SUB_VERT_STEP = 46;
+const SUB_FIRST_OFFSET = 40;     // first sub y offset from layer center
+const SUB_BOTTOM_PAD = 20;
+
+function computeLayout() {
+  let y = TOP_PAD;
+  LAYERS.forEach((L, i) => {
+    L.y = y;
+    L.x = TRUNK_X;
+    L.r = rForLayer(L.bn);
+    const isOpen = expanded.has(L.id);
+    if (isOpen) {
+      L.children.forEach((sub, j) => {
+        sub._uid = L.id + '-s' + j;
+        sub.parent = L;
+        sub.x = SUB_X;
+        sub.y = L.y + SUB_FIRST_OFFSET + j * SUB_VERT_STEP;
+        sub.r = rForSub(sub.bn);
+      });
+      const lastSubY = L.y + SUB_FIRST_OFFSET + (L.children.length - 1) * SUB_VERT_STEP;
+      y = lastSubY + SUB_BOTTOM_PAD + LAYER_SPACING_COLLAPSED * 0.5;
+    } else {
+      y += LAYER_SPACING_COLLAPSED;
+    }
+  });
+  return y + TOP_PAD;
+}
+
+function render() {
+  const totalHeight = computeLayout();
+  const width = Math.min(window.innerWidth, 480);
+
+  // Build SVG
+  let trunkLinks = '';
+  for (let i = 0; i < LAYERS.length - 1; i++) {
+    const a = LAYERS[i], b = LAYERS[i+1];
+    trunkLinks += `<line class="trunk" x1="${a.x}" y1="${a.y + a.r + 2}" x2="${b.x}" y2="${b.y - b.r - 4}" marker-end="url(#arrow)"/>`;
   }
-  html += `</span>`;
-  return html;
-}
-function chainColor(c) {
-  return ({energy:"#ff9500", compute:"#007aff", money:"#30d158", warn:"#ff3b30"})[c] || "#8e8e93";
-}
 
-const app = document.getElementById('app');
-app.innerHTML = LAYERS.map(L => {
-  const subsHtml = L.children.map(sub => {
-    const sorted = (sub.tickers || []).slice().sort((a,b) => (statusOrder[a.status]??3) - (statusOrder[b.status]??3));
-    const tickersHtml = sorted.length === 0
-      ? `<div class="empty">待填</div>`
-      : sorted.map(t => `
-          <div class="ticker">
-            <span class="ticker-code">${t.code}</span>
-            <span class="ticker-name">${t.name || ''}</span>
-            <span class="ticker-tag ${t.status}">${statusLabel[t.status] || '候选'}</span>
-          </div>`).join('');
-    const warnIcon = sub.warn ? '<span class="warn-icon">⚠️</span>' : '';
-    return `
-      <div class="sub-wrapper">
-        <button class="sub" data-sub>
-          <span class="sub-name">${sub.name}${warnIcon}</span>
-          ${bnMeter(sub.bn, L.chain)}
-          <span class="sub-count">${sorted.length}</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
-        </button>
-        <div class="tickers">${tickersHtml}</div>
-      </div>
+  let nodes = '';
+  let branches = '';
+  LAYERS.forEach(L => {
+    const isOpen = expanded.has(L.id);
+    const warnMark = L.warn ? ' ⚠️' : '';
+    // Layer label above
+    nodes += `
+      <g class="node layer ${L.chain} ${isOpen ? 'expanded' : ''}" data-layer="${L.id}">
+        <text class="layer-id" x="${L.x + L.r + 10}" y="${L.y - 4}">${L.id}</text>
+        <text x="${L.x + L.r + 10}" y="${L.y + 14}">${L.name}${warnMark}</text>
+        <circle cx="${L.x}" cy="${L.y}" r="${L.r}"/>
+      </g>
     `;
-  }).join('');
-  const warnIcon = L.warn ? '<span class="warn-icon">⚠️</span>' : '';
-  return `
-    <section class="layer ${L.chain}">
-      <button class="layer-head" data-layer>
-        <span class="layer-side-bar bar-${L.chain}"></span>
-        <span class="layer-main">
-          <div class="layer-id">${L.id}</div>
-          <div class="layer-name">${L.name}${warnIcon}${bnMeter(L.bn, L.chain)}</div>
-        </span>
-        <span class="layer-count">${L.children.length}</span>
-        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
-      </button>
-      <div class="subs">${subsHtml}</div>
-    </section>
-  `;
-}).join('');
+    if (isOpen) {
+      L.children.forEach(sub => {
+        // Branch from trunk to sub
+        branches += `<path class="branch" d="M ${L.x + L.r},${L.y} Q ${L.x + 30},${sub.y} ${sub.x - sub.r - 2},${sub.y}"/>`;
+        const count = (sub.tickers || []).length;
+        const warn = sub.warn ? ' ⚠️' : '';
+        nodes += `
+          <g class="node sub ${L.chain}" data-sub="${sub._uid}">
+            <circle cx="${sub.x}" cy="${sub.y}" r="${sub.r}"/>
+            <text x="${sub.x + sub.r + 8}" y="${sub.y + 4}">${sub.name}${warn}</text>
+            <text class="count-badge" x="${width - 20}" y="${sub.y + 4}" text-anchor="end">${count}</text>
+          </g>
+        `;
+      });
+    }
+  });
 
-// Toggle layer
-app.addEventListener('click', e => {
-  const layerBtn = e.target.closest('[data-layer]');
-  if (layerBtn) {
-    layerBtn.closest('.layer').classList.toggle('open');
+  const svg = `
+    <svg width="${width}" height="${totalHeight}" viewBox="0 0 ${width} ${totalHeight}">
+      <defs>
+        <marker id="arrow" viewBox="0 -4 8 8" refX="8" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,-3L8,0L0,3" class="arrow-marker"/>
+        </marker>
+      </defs>
+      ${trunkLinks}
+      ${branches}
+      ${nodes}
+    </svg>
+  `;
+  canvas.innerHTML = svg;
+}
+
+function bnMeterHtml(bn, chain) {
+  let html = `<span class="bn-meter" style="color:${chainColor[chain]||'#8e8e93'}">`;
+  for (let i = 1; i <= 5; i++) {
+    html += `<span class="bn-bar ${i<=bn?'on':''}"></span>`;
+  }
+  return html + `</span>`;
+}
+
+// Bottom sheet
+const sheet = document.getElementById('sheet');
+const backdrop = document.getElementById('backdrop');
+const sheetTitle = document.getElementById('sheetTitle');
+const sheetSub = document.getElementById('sheetSub');
+const tickerList = document.getElementById('tickerList');
+
+function openSheet(subUid) {
+  let sub, layer;
+  for (const L of LAYERS) {
+    const found = L.children.find(s => s._uid === subUid);
+    if (found) { sub = found; layer = L; break; }
+  }
+  if (!sub) return;
+  const sorted = (sub.tickers || []).slice().sort((a,b) => (statusOrder[a.status]??3)-(statusOrder[b.status]??3));
+  sheetTitle.innerHTML = `${sub.name}${sub.warn?' ⚠️':''} ${bnMeterHtml(sub.bn, layer.chain)}`;
+  sheetSub.textContent = `${layer.id} ${layer.name} · ${sorted.length} 个候选标的`;
+  if (sorted.length === 0) {
+    tickerList.innerHTML = `<div class="empty-state">待填</div>`;
+  } else {
+    tickerList.innerHTML = sorted.map(t => `
+      <div class="ticker-row">
+        <span class="ticker-code">${t.code}</span>
+        <span class="ticker-name">${t.name || ''}</span>
+        <span class="ticker-tag ${t.status}">${statusLabel[t.status]||'候选'}</span>
+      </div>
+    `).join('');
+  }
+  sheet.classList.add('open');
+  backdrop.classList.add('open');
+}
+function closeSheet() {
+  sheet.classList.remove('open');
+  backdrop.classList.remove('open');
+}
+backdrop.addEventListener('click', closeSheet);
+
+// Swipe-down to dismiss
+let startY = 0, currentY = 0, dragging = false;
+sheet.addEventListener('touchstart', e => {
+  if (!e.target.closest('.sheet-handle') && !e.target.closest('.sheet-header')) return;
+  startY = e.touches[0].clientY; dragging = true;
+  sheet.style.transition = 'none';
+});
+sheet.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  currentY = e.touches[0].clientY - startY;
+  if (currentY < 0) currentY = 0;
+  sheet.style.transform = `translateY(${currentY}px)`;
+});
+sheet.addEventListener('touchend', () => {
+  if (!dragging) return;
+  sheet.style.transition = '';
+  sheet.style.transform = '';
+  if (currentY > 80) closeSheet();
+  dragging = false; currentY = 0;
+});
+
+// Interactions
+canvas.addEventListener('click', e => {
+  const layerNode = e.target.closest('[data-layer]');
+  if (layerNode) {
+    const id = layerNode.dataset.layer;
+    if (expanded.has(id)) expanded.delete(id);
+    else expanded.add(id);
+    render();
     return;
   }
-  const subBtn = e.target.closest('[data-sub]');
-  if (subBtn) {
-    subBtn.parentElement.classList.toggle('open');
-  }
+  const subNode = e.target.closest('[data-sub]');
+  if (subNode) openSheet(subNode.dataset.sub);
 });
+
+window.addEventListener('resize', render);
+render();
 </script>
 </body>
 </html>
