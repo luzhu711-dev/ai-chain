@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>AI 产业价值链</title>
+  <style>
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: saturate(180%) blur(16px);
+      -webkit-backdrop-filter: saturate(180%) blur(16px);
+      padding: 14px 16px 10px;
+      padding-top: calc(14px + env(safe-area-inset-top));
+      border-bottom: 0.5px solid rgba(0,0,0,0.08);
+    }
+    h1 {
+      font-family: "SF Pro Display", -apple-system, sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      color: #8e8e93;
+      font-size: 12px;
+      margin-top: 3px;
+    }
+    .legend {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    .legend::-webkit-scrollbar { display: none; }
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #e5e5ea;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #3a3a3c;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .dot-energy { background: #ff9500; }
+    .dot-compute { background: #007aff; }
+    .dot-money { background: #30d158; }
+    .dot-warn { background: #ff3b30; }
+
+    main {
+      padding: 12px 14px 80px;
+    }
+
+    /* Layer card */
+    .layer {
+      background: white;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      box-shadow: 0 0.5px 0 rgba(0,0,0,0.05);
+    }
+    .layer-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      min-height: 56px;
+      background: white;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+      transition: background 0.12s;
+    }
+    .layer-head:active { background: #f2f2f7; }
+    .layer-side-bar {
+      width: 4px;
+      align-self: stretch;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .bar-energy { background: #ff9500; }
+    .bar-compute { background: #007aff; }
+    .bar-money { background: #30d158; }
+    .bar-warn { background: #ff3b30; }
+    .layer-main { flex: 1; min-width: 0; }
+    .layer-id {
+      font-size: 11px;
+      color: #8e8e93;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+    .layer-name {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #1c1c1e;
+    }
+    .layer-name .warn-icon { color: #ff3b30; margin-left: 2px; font-size: 12px; }
+    .bn-meter {
+      display: inline-flex;
+      gap: 2px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .bn-bar {
+      width: 3px;
+      height: 10px;
+      border-radius: 1px;
+      background: #d1d1d6;
+    }
+    .bn-bar.on { background: currentColor; }
+    .layer-count {
+      font-size: 13px;
+      color: #8e8e93;
+      font-variant-numeric: tabular-nums;
+    }
+    .chevron {
+      width: 16px; height: 16px;
+      color: #c7c7cc;
+      transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+      flex-shrink: 0;
+    }
+    .layer.open .chevron { transform: rotate(90deg); }
+
+    /* Subs inside layer */
+    .subs {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s cubic-bezier(0.2, 0, 0, 1);
+      background: #f9f9fb;
+    }
+    .layer.open .subs { max-height: 2000px; }
+    .sub {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px 12px 30px;
+      border-top: 0.5px solid rgba(0,0,0,0.06);
+      min-height: 48px;
+      cursor: pointer;
+      background: transparent;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      transition: background 0.12s;
+    }
+    .sub:active { background: rgba(0,0,0,0.04); }
+    .sub-name {
+      flex: 1;
+      font-size: 14.5px;
+      color: #1c1c1e;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+    .sub-count {
+      font-size: 13px;
+      color: #8e8e93;
+      background: #e5e5ea;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-variant-numeric: tabular-nums;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    /* Ticker list inside sub */
+    .tickers {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s cubic-bezier(0.2, 0, 0, 1);
+      background: white;
+    }
+    .sub-wrapper.open .tickers {
+      max-height: 600px;
+    }
+    .ticker {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px 11px 44px;
+      border-top: 0.5px solid rgba(0,0,0,0.05);
+      min-height: 44px;
+    }
+    .ticker-code {
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-weight: 600;
+      color: #007aff;
+      font-size: 13px;
+      min-width: 78px;
+    }
+    .ticker-name {
+      flex: 1;
+      font-size: 13px;
+      color: #3a3a3c;
+      line-height: 1.35;
+    }
+    .ticker-tag {
+      font-size: 10.5px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+      background: #e5e5ea;
+      color: #6e6e73;
+    }
+    .ticker-tag.pos { background: #e4fbeb; color: #148f3e; }
+    .ticker-tag.watch { background: #fff2df; color: #b15a00; }
+    .empty {
+      padding: 14px 16px 14px 44px;
+      font-size: 13px;
+      color: #c7c7cc;
+      font-style: italic;
+    }
+
+    /* Chain color token inheritance */
+    .layer.energy .bn-bar.on { background: #ff9500; }
+    .layer.compute .bn-bar.on { background: #007aff; }
+    .layer.money .bn-bar.on { background: #30d158; }
+    .layer.warn .bn-bar.on { background: #ff3b30; }
+    .layer.warn .layer-name { color: #1c1c1e; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 20px 14px 30px;
+      color: #8e8e93;
+      font-size: 11px;
+    }
+    footer a { color: #007aff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI 产业价值链</h1>
+    <div class="sub">10 层 · 上游 → 下游 · 节点紧缺度 1–5</div>
+    <div class="legend">
+      <span class="legend-chip"><span class="legend-dot dot-energy"></span>能量链</span>
+      <span class="legend-chip"><span class="legend-dot dot-compute"></span>算力链</span>
+      <span class="legend-chip"><span class="legend-dot dot-money"></span>货币化链</span>
+      <span class="legend-chip"><span class="legend-dot dot-warn"></span>隐性瓶颈</span>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <footer>
+    v1 · <a href="index.html">切换桌面版</a>
+  </footer>
+
+<script>
+const LAYERS = [
+  { id:"L1", name:"一次资源", chain:"energy", bn:2, children:[
+    { name:"核燃料链", bn:3, tickers:[
+      {code:"CCJ", name:"Cameco", status:"pos"},
+      {code:"KAP", name:"Kazatomprom", status:"watch"},
+      {code:"UEC", name:"Uranium Energy", status:"todo"},
+      {code:"UUUU", name:"Energy Fuels", status:"todo"},
+      {code:"NXE", name:"NexGen Energy", status:"todo"},
+      {code:"URA", name:"铀矿 ETF", status:"todo"},
+      {code:"URNM", name:"铀矿 ETF", status:"todo"},
+      {code:"SRUUF", name:"Sprott 实物铀信托", status:"todo"},
+    ]},
+    { name:"化石能源", bn:2, tickers:[
+      {code:"EQT", name:"EQT Corp", status:"todo"},
+      {code:"LNG", name:"Cheniere", status:"todo"},
+    ]},
+    { name:"电气金属", bn:3, tickers:[
+      {code:"FCX", name:"Freeport-McMoRan", status:"todo"},
+      {code:"ALM", name:"Almonty 钨", status:"pos"},
+      {code:"03858.HK", name:"佳鑫国际资源（钨）", status:"pos"},
+    ]},
+    { name:"半导体材料", bn:3, tickers:[
+      {code:"ENTG", name:"Entegris（半导体特种材料龙头）", status:"todo"},
+    ]},
+    { name:"特殊材料", bn:2, tickers:[] },
+  ]},
+  { id:"L2", name:"可调度电力", chain:"energy", bn:4, children:[
+    { name:"核电 IPP", bn:5, tickers:[
+      {code:"CEG", name:"Constellation（AlphaEngine 5/5 首推）", status:"watch"},
+      {code:"VST", name:"Vistra（AI 叙事是核电·主业气电）", status:"watch"},
+      {code:"TLN", name:"Talen Energy", status:"watch"},
+    ]},
+    { name:"SMR", bn:3, tickers:[
+      {code:"OKLO", name:"Oklo（纯 SMR）", status:"watch"},
+      {code:"SMR", name:"NuScale（纯 SMR）", status:"watch"},
+      {code:"BWXT", name:"BWX Tech（海军核主业·SMR 分部）", status:"todo"},
+    ]},
+    { name:"天然气 CCGT", bn:3, tickers:[
+      {code:"GEV", name:"GE Vernova（燃气轮机主业 48%）", status:"todo"},
+      {code:"VST", name:"Vistra（气电 25GW 主业）", status:"watch"},
+    ]},
+    { name:"储能 + 可再生", bn:4, tickers:[
+      {code:"TSLA", name:"Tesla Megapack（储能是分部）", status:"todo"},
+      {code:"FLNC", name:"Fluence Energy（电网级储能专家）", status:"todo"},
+      {code:"BE", name:"Bloom Energy（燃料电池 + 储能）", status:"todo"},
+      {code:"3750.HK", name:"宁德时代 H（AIDC 储能新兴）", status:"watch"},
+      {code:"FSLR", name:"First Solar（光伏·DC 配套）", status:"todo"},
+    ]},
+    { name:"柴发备用", bn:2, tickers:[
+      {code:"2338.HK", name:"潍柴动力 H", status:"todo"},
+    ]},
+  ]},
+  { id:"L3", name:"并网输配电", chain:"warn", bn:5, warn:true, children:[
+    { name:"输电线路", bn:4, tickers:[] },
+    { name:"变压器", bn:5, warn:true, tickers:[
+      {code:"HTA", name:"Hitachi Energy（电网专家·主业）", status:"todo"},
+      {code:"GEV", name:"GE Vernova（电气化分部含变压器）", status:"todo"},
+    ]},
+    { name:"变电站", bn:3, tickers:[] },
+    { name:"并网审批", bn:5, warn:true, tickers:[] },
+  ]},
+  { id:"L4", name:"DC 电力热管理", chain:"energy", bn:3, children:[
+    { name:"UPS / 配电", bn:3, tickers:[
+      {code:"VRT", name:"Vertiv（DC 关键电源·主业）", status:"watch"},
+      {code:"ETN", name:"Eaton（电气广谱·DC 分部）", status:"watch"},
+      {code:"SBGSY", name:"Schneider（电气广谱·DC 分部）", status:"todo"},
+      {code:"3393.HK", name:"威胜集团（AIDC 子公司拟独立上市）", status:"todo"},
+    ]},
+    { name:"备用电源", bn:2, tickers:[
+      {code:"CMI", name:"Cummins（卡车柴油机主业）", status:"todo"},
+      {code:"2338.HK", name:"潍柴动力 H（SOFC 新兴）", status:"todo"},
+    ]},
+    { name:"液冷 / CDU", bn:4, tickers:[
+      {code:"VRT", name:"Vertiv（热管理分部）", status:"watch"},
+      {code:"MOD", name:"Modine（热管理·主业）", status:"todo"},
+    ]},
+    { name:"HVAC 散热", bn:2, tickers:[] },
+  ]},
+  { id:"L5", name:"半导体供给", chain:"compute", bn:5, children:[
+    { name:"设备与材料", bn:4, tickers:[
+      {code:"ASML", name:"ASML EUV", status:"watch"},
+      {code:"AMAT", name:"Applied Materials", status:"watch"},
+      {code:"LRCX", name:"Lam Research", status:"watch"},
+      {code:"KLAC", name:"KLA", status:"todo"},
+      {code:"TER", name:"Teradyne", status:"todo"},
+      {code:"ATEYY", name:"Advantest", status:"todo"},
+      {code:"COHU", name:"Cohu", status:"todo"},
+      {code:"AEIS", name:"Advanced Energy", status:"todo"},
+    ]},
+    { name:"晶圆制造", bn:4, tickers:[
+      {code:"TSM", name:"TSMC", status:"watch"},
+      {code:"INTC", name:"Intel Foundry", status:"todo"},
+      {code:"GFS", name:"GlobalFoundries", status:"todo"},
+      {code:"UMC", name:"联电", status:"todo"},
+      {code:"0981.HK", name:"中芯国际 SMIC", status:"todo"},
+    ]},
+    { name:"先进封装", bn:5, tickers:[
+      {code:"TSM", name:"TSMC CoWoS", status:"watch"},
+      {code:"AMKR", name:"Amkor", status:"todo"},
+      {code:"ASX", name:"ASE", status:"todo"},
+      {code:"BESI", name:"BE Semi 混合键合", status:"watch"},
+    ]},
+    { name:"HBM 内存", bn:5, tickers:[
+      {code:"DRAM", name:"Roundhill Memory ETF", status:"pos"},
+      {code:"MU", name:"Micron（DRAM + HBM）", status:"watch"},
+      {code:"000660.KS", name:"SK 海力士（HBM 龙头）", status:"watch"},
+      {code:"005930.KS", name:"Samsung（HBM3E 追赶）", status:"todo"},
+    ]},
+    { name:"NAND 存储", bn:4, tickers:[
+      {code:"SNDK", name:"SanDisk 闪迪（纯 NAND 龙头）", status:"watch"},
+      {code:"MU", name:"Micron（NAND 次要分部）", status:"watch"},
+      {code:"000660.KS", name:"SK 海力士（NAND + Solidigm）", status:"watch"},
+      {code:"005930.KS", name:"Samsung（NAND 份额第一）", status:"todo"},
+    ]},
+  ]},
+  { id:"L6", name:"核心算力器件", chain:"compute", bn:4, children:[
+    { name:"GPU / 加速器", bn:5, tickers:[
+      {code:"NVDA", name:"NVIDIA（GPU 主业 85%+）", status:"watch"},
+      {code:"AMD", name:"AMD MI（加速器是 AI 分部）", status:"watch"},
+    ]},
+    { name:"定制 ASIC", bn:4, tickers:[
+      {code:"AVGO", name:"Broadcom（Google TPU + Meta MTIA）", status:"pos"},
+      {code:"MRVL", name:"Marvell（AWS Trainium + MS Maia）", status:"watch"},
+    ]},
+    { name:"CPU / Host", bn:3, tickers:[
+      {code:"AMD", name:"AMD EPYC", status:"watch"},
+      {code:"INTC", name:"Intel Xeon", status:"todo"},
+    ]},
+    { name:"NIC / DPU", bn:3, tickers:[
+      {code:"ALAB", name:"Astera Labs", status:"watch"},
+      {code:"MRVL", name:"Marvell", status:"watch"},
+    ]},
+    { name:"电源管理", bn:2, tickers:[
+      {code:"MPWR", name:"Monolithic Power", status:"todo"},
+    ]},
+  ]},
+  { id:"L7", name:"高速互联", chain:"compute", bn:4, children:[
+    { name:"交换机", bn:3, tickers:[
+      {code:"ANET", name:"Arista", status:"watch"},
+      {code:"AVGO", name:"Broadcom Tomahawk", status:"pos"},
+    ]},
+    { name:"光模块", bn:5, tickers:[
+      {code:"06166.HK", name:"剑桥科技（光模块主业）", status:"pos"},
+      {code:"COHR", name:"Coherent（光通信主业）", status:"watch"},
+      {code:"LITE", name:"Lumentum（光通信主业）", status:"watch"},
+      {code:"FN", name:"Fabrinet（光学制造主业）", status:"todo"},
+      {code:"GLW", name:"Corning（显示主业·光通信 30% 分部）", status:"watch"},
+    ]},
+    { name:"AEC / DAC", bn:3, tickers:[
+      {code:"CRDO", name:"Credo", status:"watch"},
+    ]},
+    { name:"CPO", bn:5, tickers:[
+      {code:"AVGO", name:"Broadcom CPO（ISSCC 2026 专题）", status:"pos"},
+      {code:"COHR", name:"Coherent", status:"watch"},
+      {code:"NVDA", name:"NVIDIA（CPO Roadmap 正式）", status:"watch"},
+    ]},
+    { name:"连接器 / PCB", bn:3, tickers:[
+      {code:"ALAB", name:"Astera Labs", status:"watch"},
+    ]},
+  ]},
+  { id:"L8", name:"系统集成 / DC", chain:"compute", bn:2, children:[
+    { name:"服务器 OEM/ODM", bn:2, tickers:[
+      {code:"SMCI", name:"Supermicro（AI 服务器主业）", status:"watch"},
+      {code:"DELL", name:"Dell（PC 主业·ISG 是分部）", status:"watch"},
+    ]},
+    { name:"机柜级系统", bn:3, tickers:[] },
+    { name:"Colo / REIT", bn:2, tickers:[
+      {code:"EQIX", name:"Equinix", status:"todo"},
+      {code:"DLR", name:"Digital Realty", status:"todo"},
+    ]},
+    { name:"Neocloud", bn:3, tickers:[
+      {code:"CRWV", name:"CoreWeave", status:"watch"},
+      {code:"NBIS", name:"Nebius", status:"watch"},
+    ]},
+  ]},
+  { id:"L9", name:"平台 / 模型 / 货币化", chain:"money", bn:3, children:[
+    { name:"云 & 推理平台", bn:3, tickers:[
+      {code:"AMZN", name:"AWS（零售主业·AWS 分部）", status:"pos"},
+      {code:"MSFT", name:"Azure（办公主业·Azure 分部）", status:"watch"},
+      {code:"GOOGL", name:"GCP（广告主业·Cloud 分部）", status:"watch"},
+    ]},
+    { name:"基础模型", bn:3, tickers:[
+      {code:"META", name:"Meta Llama（广告主业·Llama 开源）", status:"pos"},
+      {code:"DXYZ", name:"Anthropic / xAI proxy", status:"pos"},
+    ]},
+    { name:"中间件", bn:2, tickers:[] },
+    { name:"数据层", bn:3, tickers:[] },
+  ]},
+  { id:"L10", name:"应用 / 终端需求", chain:"money", bn:3, children:[
+    { name:"消费助手", bn:2, tickers:[] },
+    { name:"企业 Agent", bn:4, tickers:[
+      {code:"PLTR", name:"Palantir", status:"watch"},
+    ]},
+    { name:"垂直软件", bn:2, tickers:[] },
+    { name:"机器人 / AV", bn:3, tickers:[
+      {code:"TSLA", name:"Tesla（EV 主业·FSD/Optimus 分部）", status:"todo"},
+    ]},
+    { name:"政府 / 国防", bn:3, tickers:[
+      {code:"PLTR", name:"Palantir", status:"watch"},
+    ]},
+  ]},
+];
+
+const statusOrder = { pos:0, watch:1, todo:2 };
+const statusLabel = { pos:"持仓", watch:"关注", todo:"候选" };
+
+function bnMeter(bn, chain) {
+  let html = `<span class="bn-meter" style="color:${chainColor(chain)}">`;
+  for (let i = 1; i <= 5; i++) {
+    html += `<span class="bn-bar ${i <= bn ? 'on' : ''}"></span>`;
+  }
+  html += `</span>`;
+  return html;
+}
+function chainColor(c) {
+  return ({energy:"#ff9500", compute:"#007aff", money:"#30d158", warn:"#ff3b30"})[c] || "#8e8e93";
+}
+
+const app = document.getElementById('app');
+app.innerHTML = LAYERS.map(L => {
+  const subsHtml = L.children.map(sub => {
+    const sorted = (sub.tickers || []).slice().sort((a,b) => (statusOrder[a.status]??3) - (statusOrder[b.status]??3));
+    const tickersHtml = sorted.length === 0
+      ? `<div class="empty">待填</div>`
+      : sorted.map(t => `
+          <div class="ticker">
+            <span class="ticker-code">${t.code}</span>
+            <span class="ticker-name">${t.name || ''}</span>
+            <span class="ticker-tag ${t.status}">${statusLabel[t.status] || '候选'}</span>
+          </div>`).join('');
+    const warnIcon = sub.warn ? '<span class="warn-icon">⚠️</span>' : '';
+    return `
+      <div class="sub-wrapper">
+        <button class="sub" data-sub>
+          <span class="sub-name">${sub.name}${warnIcon}</span>
+          ${bnMeter(sub.bn, L.chain)}
+          <span class="sub-count">${sorted.length}</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <div class="tickers">${tickersHtml}</div>
+      </div>
+    `;
+  }).join('');
+  const warnIcon = L.warn ? '<span class="warn-icon">⚠️</span>' : '';
+  return `
+    <section class="layer ${L.chain}">
+      <button class="layer-head" data-layer>
+        <span class="layer-side-bar bar-${L.chain}"></span>
+        <span class="layer-main">
+          <div class="layer-id">${L.id}</div>
+          <div class="layer-name">${L.name}${warnIcon}${bnMeter(L.bn, L.chain)}</div>
+        </span>
+        <span class="layer-count">${L.children.length}</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+      </button>
+      <div class="subs">${subsHtml}</div>
+    </section>
+  `;
+}).join('');
+
+// Toggle layer
+app.addEventListener('click', e => {
+  const layerBtn = e.target.closest('[data-layer]');
+  if (layerBtn) {
+    layerBtn.closest('.layer').classList.toggle('open');
+    return;
+  }
+  const subBtn = e.target.closest('[data-sub]');
+  if (subBtn) {
+    subBtn.parentElement.classList.toggle('open');
+  }
+});
+</script>
+</body>
+</html>
