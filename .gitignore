@@ -1,0 +1,5 @@
+.DS_Store
+node_modules/
+*.log
+# Keep React prototype's dist/ for reference, exclude node_modules
+_react原型/node_modules/
