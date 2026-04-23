@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>AI 产业价值链 · v5</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: #ffffff;
+      color: #1d1d1f;
+      overflow: hidden;
+      letter-spacing: -0.01em;
+    }
+    header {
+      padding: 22px 40px 18px;
+      background: #ffffff;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 5;
+    }
+    .title-block h1 {
+      font-family: "SF Pro Display", -apple-system, "Inter", "PingFang SC", sans-serif;
+      font-size: 20px;
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #1d1d1f;
+    }
+    .title-block .sub {
+      color: #86868b;
+      font-size: 13px;
+      margin-top: 4px;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+    .legend {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      color: #6e6e73;
+      margin-left: auto;
+      align-items: center;
+      font-weight: 500;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block; border: 1.8px solid;
+      background: white;
+    }
+    #canvas {
+      width: 100vw;
+      height: calc(100vh - 82px);
+      overflow: auto;
+      position: relative;
+      background: #fbfbfd;
+    }
+    svg { display: block; }
+
+    /* Nodes */
+    .node { cursor: pointer; }
+    .node circle {
+      fill: white;
+      stroke: #1d1d1f;
+      stroke-width: 1.5;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.04));
+      transition: stroke-width 0.25s cubic-bezier(0.2, 0, 0, 1), filter 0.25s;
+    }
+    .node:hover circle {
+      stroke-width: 2.2;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+    }
+    .node.expanded circle { stroke-width: 2; }
+    .node.active circle {
+      stroke-width: 2.4;
+      filter: drop-shadow(0 6px 14px rgba(0,122,255,0.25));
+    }
+    .node text {
+      fill: #1d1d1f;
+      pointer-events: none;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+    .node.layer text { font-size: 13px; font-weight: 600; letter-spacing: -0.02em; }
+    .node.sub text { font-size: 12px; fill: #424245; font-weight: 500; }
+
+    .node.energy circle { stroke: #ff9500; }
+    .node.compute circle { stroke: #007aff; }
+    .node.money circle { stroke: #30d158; }
+    .node.warn circle { stroke: #ff3b30; fill: #fff5f5; }
+    .node.capital circle { stroke: #af52de; stroke-dasharray: 3 3; }
+
+    .node.energy.expanded circle { fill: #fff9ef; }
+    .node.compute.expanded circle { fill: #f0f7ff; }
+    .node.money.expanded circle { fill: #f0fdf4; }
+    .node.warn.expanded circle { fill: #fef2f2; }
+
+    .trunk-link {
+      fill: none;
+      stroke: #1d1d1f;
+      stroke-width: 1.6;
+    }
+    .branch-link {
+      fill: none;
+      stroke: #d2d2d7;
+      stroke-width: 1.4;
+      stroke-linecap: round;
+    }
+
+    /* Popup — Apple style */
+    .popup {
+      position: absolute;
+      background: white;
+      border-radius: 14px;
+      box-shadow:
+        0 0 0 0.5px rgba(0,0,0,0.04),
+        0 4px 16px rgba(0,0,0,0.06),
+        0 24px 48px rgba(0,0,0,0.12);
+      min-width: 260px;
+      max-width: 320px;
+      z-index: 100;
+      font-size: 13px;
+      overflow: hidden;
+      opacity: 0;
+      transform: scale(0.92) translateY(-6px);
+      transition: opacity 0.28s cubic-bezier(0.2, 0, 0, 1),
+                  transform 0.28s cubic-bezier(0.2, 0, 0, 1);
+    }
+    .popup.visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    .popup-header {
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .popup-title {
+      font-family: "SF Pro Display", -apple-system, sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+      color: #1d1d1f;
+      letter-spacing: -0.02em;
+    }
+    .popup-layer {
+      font-size: 12px;
+      color: #86868b;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+    .popup-close {
+      background: rgba(0,0,0,0.04);
+      border: none;
+      cursor: pointer;
+      color: #86868b;
+      font-size: 14px;
+      line-height: 1;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .popup-close:hover { background: rgba(0,0,0,0.08); color: #1d1d1f; }
+    .popup-section {
+      padding: 8px 12px 14px;
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    .popup-section--tickers { padding-top: 6px; }
+    .popup-section-title {
+      font-size: 11px;
+      color: #86868b;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .meta-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .meta-card {
+      font-size: 12px;
+      color: #515154;
+      line-height: 1.55;
+      padding: 10px 12px;
+      background: #f5f5f7;
+      border-radius: 8px;
+    }
+    .meta-card-label {
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-right: 6px;
+    }
+    .ticker-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ticker-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .ticker-row:hover { background: #f5f5f7; }
+    .ticker-row input {
+      margin: 0;
+      cursor: pointer;
+      accent-color: #007aff;
+    }
+    .ticker-code {
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-weight: 600;
+      color: #007aff;
+      font-size: 12.5px;
+      min-width: 74px;
+      letter-spacing: -0.01em;
+    }
+    .ticker-name {
+      color: #424245;
+      font-size: 12px;
+      flex: 1;
+    }
+    .ticker-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: #f0f0f2;
+      color: #6e6e73;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .ticker-tag.pos { background: #e3fcef; color: #047857; }
+    .ticker-tag.watch { background: #fff4e5; color: #b45309; }
+    .ticker-empty {
+      color: #c7c7cc;
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-block">
+      <h1>AI 产业价值链全景</h1>
+      <div class="sub">上游 → 下游 · 点击层节点展开 · 再点子功能查看候选标的</div>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="dot" style="border-color:#ff9500;"></span>能量链</span>
+      <span class="legend-item"><span class="dot" style="border-color:#007aff;"></span>算力链</span>
+      <span class="legend-item"><span class="dot" style="border-color:#30d158;"></span>货币化链</span>
+      <span class="legend-item"><span class="dot" style="border-color:#ff3b30;"></span>隐性瓶颈</span>
+    </div>
+  </header>
+  <div id="canvas"></div>
+
+<script>
+// bn (bottleneck score) 1-5: 5=严重卡点，1=无瓶颈。节点大小 = f(bn)
+const layers = [
+  { id:"L1", name:"L1 一次资源", chain:"energy", bn:2, children:[
+    { name:"核燃料链", bn:3, tickers:[
+      {code:"CCJ", name:"Cameco", status:"pos"},
+      {code:"KAP", name:"Kazatomprom", status:"watch"},
+      {code:"UEC", name:"Uranium Energy", status:"todo"},
+      {code:"UUUU", name:"Energy Fuels", status:"todo"},
+      {code:"NXE", name:"NexGen Energy", status:"todo"},
+      {code:"URA", name:"铀矿 ETF", status:"todo"},
+      {code:"URNM", name:"铀矿 ETF", status:"todo"},
+      {code:"SRUUF", name:"Sprott 实物铀信托", status:"todo"},
+    ]},
+    { name:"化石能源", bn:2, tickers:[
+      {code:"EQT", name:"EQT Corp", status:"todo"},
+      {code:"LNG", name:"Cheniere", status:"todo"},
+    ]},
+    { name:"电气金属", bn:3, tickers:[
+      {code:"FCX", name:"Freeport-McMoRan", status:"todo"},
+      {code:"ALM", name:"Almonty 钨", status:"pos"},
+      {code:"03858.HK", name:"佳鑫国际资源（钨）", status:"pos"},
+    ]},
+    { name:"半导体材料", bn:3, tickers:[
+      {code:"ENTG", name:"Entegris（半导体特种材料龙头·AlphaEngine 推荐）", status:"todo"},
+    ]},
+    { name:"特殊材料", bn:2, tickers:[] },
+  ]},
+  { id:"L2", name:"L2 可调度电力", chain:"energy", bn:4, children:[
+    { name:"核电 IPP", bn:5, tickers:[
+      {code:"CEG", name:"Constellation（AlphaEngine 5/5 紧缺+空间首推）", status:"watch"},
+      {code:"VST", name:"Vistra（AI 叙事是核电·主业气电）", status:"watch"},
+      {code:"TLN", name:"Talen Energy", status:"watch"},
+    ]},
+    { name:"SMR", bn:3, tickers:[
+      {code:"OKLO", name:"Oklo（纯 SMR）", status:"watch"},
+      {code:"SMR", name:"NuScale（纯 SMR）", status:"watch"},
+      {code:"BWXT", name:"BWX Tech（海军核 + 医用同位素主业·SMR 是分部）", status:"todo"},
+    ]},
+    { name:"天然气 CCGT", bn:3, tickers:[
+      {code:"GEV", name:"GE Vernova（燃气轮机是主业 48%）", status:"todo"},
+      {code:"VST", name:"Vistra（气电 25GW 是主业·核电是 AI 叙事）", status:"watch"},
+    ]},
+    { name:"储能 + 可再生", bn:4, tickers:[
+      {code:"TSLA", name:"Tesla Megapack（EV 主业·储能是 AI 相关分部）", status:"todo"},
+      {code:"FLNC", name:"Fluence Energy（AES/西门子合资·电网级储能专家）", status:"todo"},
+      {code:"BE", name:"Bloom Energy（燃料电池 + DC 侧储能）", status:"todo"},
+      {code:"3750.HK", name:"宁德时代 H（EV 主业·AIDC 储能是新兴）", status:"watch"},
+      {code:"FSLR", name:"First Solar（光伏板·DC 配套）", status:"todo"},
+    ]},
+    { name:"柴发备用", bn:2, tickers:[
+      {code:"2338.HK", name:"潍柴动力 H", status:"todo"},
+    ]},
+  ]},
+  { id:"L3", name:"L3 并网输配电 ⚠️", chain:"warn", bn:5, children:[
+    { name:"输电线路", bn:4, tickers:[] },
+    { name:"变压器 ⚠️", bn:5, tickers:[
+      {code:"HTA", name:"Hitachi Energy（电网专家·主业）", status:"todo"},
+      {code:"GEV", name:"GE Vernova（电气化分部含变压器，主业是气轮）", status:"todo"},
+    ]},
+    { name:"变电站", bn:3, tickers:[] },
+    { name:"并网审批 ⚠️", bn:5, tickers:[] },
+  ]},
+  { id:"L4", name:"L4 DC 电力热管理", chain:"energy", bn:3, children:[
+    { name:"UPS / 配电", bn:3, tickers:[
+      {code:"VRT", name:"Vertiv（DC 关键电源·主业）", status:"watch"},
+      {code:"ETN", name:"Eaton（电气广谱·DC 是分部）", status:"watch"},
+      {code:"SBGSY", name:"Schneider（电气广谱·DC 是分部）", status:"todo"},
+      {code:"3393.HK", name:"威胜集团 Wasion（AIDC 子公司拟独立上市·AlphaEngine 推荐）", status:"todo"},
+    ]},
+    { name:"备用电源", bn:2, tickers:[
+      {code:"CMI", name:"Cummins（卡车柴油机主业·DC 柴发是分部）", status:"todo"},
+      {code:"2338.HK", name:"潍柴动力 H（重卡柴油机主业·DC 电源/SOFC 是新兴）", status:"todo"},
+    ]},
+    { name:"液冷 / CDU", bn:4, tickers:[
+      {code:"VRT", name:"Vertiv（热管理分部）", status:"watch"},
+      {code:"MOD", name:"Modine（热管理·主业）", status:"todo"},
+    ]},
+    { name:"HVAC 散热", bn:2, tickers:[] },
+  ]},
+  { id:"L5", name:"L5 半导体供给", chain:"compute", bn:5, children:[
+    { name:"设备与材料", bn:4, tickers:[
+      {code:"ASML", name:"ASML EUV", status:"watch"},
+      {code:"AMAT", name:"Applied Materials", status:"watch"},
+      {code:"LRCX", name:"Lam Research", status:"watch"},
+      {code:"KLAC", name:"KLA", status:"todo"},
+      {code:"TER", name:"Teradyne", status:"todo"},
+      {code:"ATEYY", name:"Advantest", status:"todo"},
+      {code:"COHU", name:"Cohu", status:"todo"},
+      {code:"AEIS", name:"Advanced Energy", status:"todo"},
+    ]},
+    { name:"晶圆制造", bn:4, tickers:[
+      {code:"TSM", name:"TSMC", status:"watch"},
+      {code:"INTC", name:"Intel Foundry", status:"todo"},
+      {code:"GFS", name:"GlobalFoundries", status:"todo"},
+      {code:"UMC", name:"联电", status:"todo"},
+      {code:"0981.HK", name:"中芯国际 SMIC", status:"todo"},
+    ]},
+    { name:"先进封装", bn:5, tickers:[
+      {code:"TSM", name:"TSMC CoWoS", status:"watch"},
+      {code:"AMKR", name:"Amkor", status:"todo"},
+      {code:"ASX", name:"ASE", status:"todo"},
+      {code:"BESI", name:"BE Semi 混合键合", status:"watch"},
+    ]},
+    { name:"HBM 内存", bn:5, tickers:[
+      {code:"DRAM", name:"Roundhill Memory ETF", status:"pos"},
+      {code:"MU", name:"Micron（DRAM + HBM）", status:"watch"},
+      {code:"000660.KS", name:"SK 海力士（HBM 龙头）", status:"watch"},
+      {code:"005930.KS", name:"Samsung 电子（HBM3E 追赶）", status:"todo"},
+    ]},
+    { name:"NAND 存储", bn:4, tickers:[
+      {code:"SNDK", name:"SanDisk 闪迪（WDC 分拆·纯 NAND 龙头）", status:"watch"},
+      {code:"MU", name:"Micron（NAND 是次要分部）", status:"watch"},
+      {code:"000660.KS", name:"SK 海力士（NAND + Solidigm 企业 SSD）", status:"watch"},
+      {code:"005930.KS", name:"Samsung（NAND 全球份额第一）", status:"todo"},
+    ]},
+  ]},
+  { id:"L6", name:"L6 核心算力器件", chain:"compute", bn:4, children:[
+    { name:"GPU / 加速器", bn:5, tickers:[
+      {code:"NVDA", name:"NVIDIA（GPU 主业 85%+）", status:"watch"},
+      {code:"AMD", name:"AMD MI（加速器是 AI 分部·主业 CPU）", status:"watch"},
+    ]},
+    { name:"定制 ASIC", bn:4, tickers:[
+      {code:"AVGO", name:"Broadcom（Google TPU + Meta MTIA·AI 分部高增长）", status:"pos"},
+      {code:"MRVL", name:"Marvell（AWS Trainium + MS Maia·AI 分部）", status:"watch"},
+    ]},
+    { name:"CPU / Host", bn:3, tickers:[
+      {code:"AMD", name:"AMD EPYC（CPU 主业）", status:"watch"},
+      {code:"INTC", name:"Intel Xeon（CPU 主业）", status:"todo"},
+    ]},
+    { name:"NIC / DPU", bn:3, tickers:[
+      {code:"ALAB", name:"Astera Labs", status:"watch"},
+      {code:"MRVL", name:"Marvell", status:"watch"},
+    ]},
+    { name:"电源管理", bn:2, tickers:[
+      {code:"MPWR", name:"Monolithic Power", status:"todo"},
+    ]},
+  ]},
+  { id:"L7", name:"L7 高速互联", chain:"compute", bn:4, children:[
+    { name:"交换机", bn:3, tickers:[
+      {code:"ANET", name:"Arista", status:"watch"},
+      {code:"AVGO", name:"Broadcom Tomahawk", status:"pos"},
+    ]},
+    { name:"光模块", bn:5, tickers:[
+      {code:"06166.HK", name:"剑桥科技（光模块主业）", status:"pos"},
+      {code:"COHR", name:"Coherent（光通信主业）", status:"watch"},
+      {code:"LITE", name:"Lumentum（光通信主业）", status:"watch"},
+      {code:"FN", name:"Fabrinet（光学制造·主业）", status:"todo"},
+      {code:"GLW", name:"Corning（显示主业·光通信是 30% 营收分部）", status:"watch"},
+    ]},
+    { name:"AEC / DAC", bn:3, tickers:[
+      {code:"CRDO", name:"Credo", status:"watch"},
+    ]},
+    { name:"CPO", bn:5, tickers:[
+      {code:"AVGO", name:"Broadcom CPO（ISSCC 2026 专题）", status:"pos"},
+      {code:"COHR", name:"Coherent", status:"watch"},
+      {code:"NVDA", name:"NVIDIA（CPO Roadmap 已正式）", status:"watch"},
+    ]},
+    { name:"连接器/PCB", bn:3, tickers:[
+      {code:"ALAB", name:"Astera Labs", status:"watch"},
+    ]},
+  ]},
+  { id:"L8", name:"L8 系统集成 / DC", chain:"compute", bn:2, children:[
+    { name:"服务器 OEM/ODM", bn:2, tickers:[
+      {code:"SMCI", name:"Supermicro（AI 服务器主业）", status:"watch"},
+      {code:"DELL", name:"Dell（PC 主业·ISG AI 服务器是分部）", status:"watch"},
+    ]},
+    { name:"机柜级系统", bn:3, tickers:[] },
+    { name:"Colo / REIT", bn:2, tickers:[
+      {code:"EQIX", name:"Equinix", status:"todo"},
+      {code:"DLR", name:"Digital Realty", status:"todo"},
+    ]},
+    { name:"Neocloud", bn:3, tickers:[
+      {code:"CRWV", name:"CoreWeave", status:"watch"},
+      {code:"NBIS", name:"Nebius", status:"watch"},
+    ]},
+  ]},
+  { id:"L9", name:"L9 平台/模型/货币化", chain:"money", bn:3, children:[
+    { name:"云 & 推理平台", bn:3, tickers:[
+      {code:"AMZN", name:"AWS（零售主业·AWS 是分部）", status:"pos"},
+      {code:"MSFT", name:"Azure（办公主业·Azure 是分部）", status:"watch"},
+      {code:"GOOGL", name:"GCP（广告主业·Cloud 是分部）", status:"watch"},
+    ]},
+    { name:"基础模型", bn:3, tickers:[
+      {code:"META", name:"Meta Llama（广告主业·Llama 开源非付费）", status:"pos"},
+      {code:"DXYZ", name:"Anthropic / xAI / SpaceX proxy（唯一私募入口）", status:"pos"},
+    ]},
+    { name:"中间件", bn:2, tickers:[] },
+    { name:"数据层 ★", bn:3, tickers:[] },
+  ]},
+  { id:"L10", name:"L10 应用 / 终端需求", chain:"money", bn:3, children:[
+    { name:"消费助手", bn:2, tickers:[] },
+    { name:"企业 Agent", bn:4, tickers:[
+      {code:"PLTR", name:"Palantir", status:"watch"},
+    ]},
+    { name:"垂直软件", bn:2, tickers:[] },
+    { name:"机器人 / AV", bn:3, tickers:[
+      {code:"TSLA", name:"Tesla（EV 主业·FSD/Optimus 是 AI 分部）", status:"todo"},
+    ]},
+    { name:"政府 / 国防", bn:3, tickers:[
+      {code:"PLTR", name:"Palantir", status:"watch"},
+    ]},
+  ]},
+];
+
+const trunkY = 360;
+const layerSpacingX = 170;
+const trunkStartX = 140;
+const svgWidth = trunkStartX + layerSpacingX * layers.length + 140;
+const svgHeight = 720;
+
+const expanded = new Set();
+let activeSubUid = null;
+let closeTimer = null;
+
+function scheduleClose() {
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(() => { closePopup(); }, 180);
+}
+function cancelClose() {
+  clearTimeout(closeTimer);
+  closeTimer = null;
+}
+
+function dirForLayer(i) { return i % 2 === 0 ? 1 : -1; }
+
+// Straight vertical column — no zigzag
+function subPosition(L, index, total, dir) {
+  const baseRadius = 58;
+  const step = 62;
+  const yOffset = dir * (baseRadius + index * step);
+  return { x: L.x, y: L.y + yOffset };
+}
+
+function layout() {
+  layers.forEach((L, i) => {
+    L._uid = L.id;
+    L._dir = dirForLayer(i);
+    L.x = trunkStartX + i * layerSpacingX;
+    L.y = trunkY;
+    L.children.forEach((sub, j) => {
+      sub._uid = `${L.id}-S${j}`;
+      sub.parent = L;
+      const p = subPosition(L, j, L.children.length, L._dir);
+      sub.x = p.x;
+      sub.y = p.y;
+    });
+  });
+}
+layout();
+
+const svg = d3.select("#canvas").append("svg")
+  .attr("width", svgWidth)
+  .attr("height", svgHeight);
+
+svg.append("defs").append("marker")
+  .attr("id", "arrow")
+  .attr("viewBox", "0 -4 8 8")
+  .attr("refX", 8).attr("refY", 0)
+  .attr("markerWidth", 6).attr("markerHeight", 6)
+  .attr("orient", "auto")
+  .append("path").attr("d", "M0,-3L8,0L0,3").attr("fill", "#1d1d1f");
+
+const gTrunk = svg.append("g");
+const gBranches = svg.append("g");
+const gNodes = svg.append("g");
+
+const popup = d3.select("#canvas").append("div").attr("class", "popup")
+  .on("mouseenter", () => cancelClose())
+  .on("mouseleave", () => scheduleClose());
+
+const chainColors = {
+  energy: "#ff9500", compute: "#007aff", money: "#30d158",
+  warn: "#ff3b30"
+};
+
+function closePopup() {
+  popup.classed("visible", false);
+  setTimeout(() => popup.style("display", "none"), 280);
+  activeSubUid = null;
+  render();
+}
+window.__closePopup = closePopup;
+
+function openPopup(sub) {
+  activeSubUid = sub._uid;
+  const L = sub.parent;
+  // Sort tickers: 持仓 > 关注 > 候选
+  const statusOrder = { pos: 0, watch: 1, todo: 2 };
+  const tickers = (sub.tickers || []).slice().sort((a, b) => {
+    const sa = statusOrder[a.status] ?? 3;
+    const sb = statusOrder[b.status] ?? 3;
+    return sa - sb;
+  });
+
+  let html = `
+    <div class="popup-header">
+      <div>
+        <div class="popup-title">${sub.name}</div>
+        <div class="popup-layer">${L.name} · ${tickers.length} 个标的</div>
+      </div>
+      <button class="popup-close" onclick="window.__closePopup()">×</button>
+    </div>
+    <div class="popup-section popup-section--tickers">
+      <div class="ticker-list">
+  `;
+  if (tickers.length === 0) {
+    html += `<div class="ticker-empty">待填</div>`;
+  } else {
+    tickers.forEach(t => {
+      const tag = t.status === 'pos' ? '<span class="ticker-tag pos">持仓</span>'
+                : t.status === 'watch' ? '<span class="ticker-tag watch">关注</span>'
+                : '<span class="ticker-tag">候选</span>';
+      html += `
+        <label class="ticker-row">
+          <input type="checkbox">
+          <span class="ticker-code">${t.code}</span>
+          <span class="ticker-name">${t.name || ''}</span>
+          ${tag}
+        </label>
+      `;
+    });
+  }
+  html += `</div></div>`;
+
+  popup.html(html);
+  const canvas = document.getElementById('canvas');
+  const popW = 300;
+  const popMaxH = 400;
+  const viewL = canvas.scrollLeft;
+  const viewR = canvas.scrollLeft + canvas.clientWidth;
+  const viewT = canvas.scrollTop;
+  const viewB = canvas.scrollTop + canvas.clientHeight;
+  let px = sub.x + 24;
+  let py = sub.y - 24;
+  // flip to left if right overflow
+  if (px + popW > viewR - 12) px = sub.x - popW - 24;
+  // clamp within viewport
+  px = Math.max(viewL + 12, Math.min(px, viewR - popW - 12));
+  py = Math.max(viewT + 12, Math.min(py, viewB - popMaxH - 12));
+  popup.style("left", px + "px").style("top", py + "px").style("display", "block");
+  // trigger animation
+  requestAnimationFrame(() => popup.classed("visible", true));
+  render();
+}
+
+// Straight line path from trunk node to sub-node
+function branchPath(from, to) {
+  return `M ${from.x},${from.y} L ${to.x},${to.y}`;
+}
+
+function render() {
+  // --- Trunk lines ---
+  const trunkLinks = layers.slice(0, -1).map((L, i) => ({
+    x1: L.x + 16, y1: L.y,
+    x2: layers[i+1].x - 16, y2: layers[i+1].y
+  }));
+
+  const tl = gTrunk.selectAll("line.trunk").data(trunkLinks);
+  tl.enter().append("line").attr("class", "trunk-link trunk")
+    .attr("marker-end", "url(#arrow)")
+    .merge(tl)
+    .attr("x1", d=>d.x1).attr("y1", d=>d.y1)
+    .attr("x2", d=>d.x2).attr("y2", d=>d.y2);
+  tl.exit().remove();
+
+  // --- Collect visible nodes and branch links ---
+  const visibleNodes = [];
+  const visibleBranches = [];
+
+  layers.forEach(L => {
+    visibleNodes.push({ node: L, role: "layer", chain: L.chain, delay: 0 });
+    if (expanded.has(L._uid)) {
+      L.children.forEach((sub, i) => {
+        visibleNodes.push({ node: sub, role: "sub", chain: L.chain, delay: i * 65 });
+        const offset = L._dir > 0 ? 15 : -15;
+        visibleBranches.push({
+          key: sub._uid,
+          from: { x: L.x, y: L.y + offset },
+          to: { x: sub.x, y: sub.y - offset }
+        });
+      });
+    }
+  });
+
+  // --- Branch paths (curved) ---
+  const bp = gBranches.selectAll("path.branch").data(visibleBranches, d => d.key);
+
+  const bpEnter = bp.enter().append("path").attr("class", "branch-link branch")
+    .attr("d", d => branchPath(d.from, d.from))
+    .style("opacity", 0);
+
+  bp.merge(bpEnter).transition()
+    .duration(320)
+    .delay((d, i) => i * 30)
+    .ease(d3.easeCubicOut)
+    .attr("d", d => branchPath(d.from, d.to))
+    .style("opacity", 1);
+
+  bp.exit().transition().duration(180).style("opacity", 0).remove();
+
+  // --- Nodes ---
+  const nd = gNodes.selectAll("g.node").data(visibleNodes, d => d.node._uid);
+
+  const ndEnter = nd.enter().append("g")
+    .attr("class", d => classesFor(d))
+    .attr("transform", d => {
+      // New subs fly in from parent position
+      if (d.role === "sub" && d.node.parent) {
+        return `translate(${d.node.parent.x},${d.node.parent.y}) scale(0.3)`;
+      }
+      return `translate(${d.node.x},${d.node.y}) scale(0.6)`;
+    })
+    .style("opacity", 0)
+    .on("click", (event, d) => {
+      event.stopPropagation();
+      if (d.role === "layer") {
+        if (activeSubUid) closePopup();
+        if (expanded.has(d.node._uid)) expanded.delete(d.node._uid);
+        else expanded.add(d.node._uid);
+        render();
+      } else if (d.role === "sub") {
+        openPopup(d.node);
+      }
+    })
+    .on("mouseenter", (event, d) => {
+      if (d.role === "sub") {
+        cancelClose();
+        if (activeSubUid !== d.node._uid) openPopup(d.node);
+      }
+    })
+    .on("mouseleave", (event, d) => {
+      if (d.role === "sub") {
+        scheduleClose();
+      }
+    });
+
+  // Node radius scales by bottleneck score (bn 1-5)
+  // Layer: r = 11 + bn*1.6  (bn=2→14.2, bn=5→19)
+  // Sub:   r = 7 + bn*1.3   (bn=2→9.6,  bn=5→13.5)
+  ndEnter.append("circle")
+    .attr("r", d => {
+      const bn = d.node.bn || 2;
+      return d.role === "layer" ? (11 + bn * 1.6) : (7 + bn * 1.3);
+    });
+
+  ndEnter.append("text")
+    .attr("y", d => {
+      const bn = d.node.bn || 2;
+      const r = d.role === "layer" ? (11 + bn * 1.6) : (7 + bn * 1.3);
+      return d.role === "layer" ? -(r + 10) : 0;
+    })
+    .attr("x", d => {
+      const bn = d.node.bn || 2;
+      const r = 7 + bn * 1.3;
+      return d.role === "layer" ? 0 : (r + 6);
+    })
+    .attr("text-anchor", d => d.role === "layer" ? "middle" : "start")
+    .attr("dy", d => d.role === "layer" ? 0 : "0.32em")
+    .attr("stroke", "#fbfbfd")
+    .attr("stroke-width", 3.5)
+    .attr("paint-order", "stroke")
+    .text(d => d.node.name);
+
+  nd.merge(ndEnter).transition()
+    .duration(380)
+    .delay(d => d.delay || 0)
+    .ease(d3.easeCubicOut)
+    .attr("transform", d => `translate(${d.node.x},${d.node.y}) scale(1)`)
+    .style("opacity", 1)
+    .attr("class", d => classesFor(d));
+
+  nd.exit().transition()
+    .duration(200)
+    .style("opacity", 0)
+    .attr("transform", d => {
+      if (d.role === "sub" && d.node.parent) {
+        return `translate(${d.node.parent.x},${d.node.parent.y}) scale(0.3)`;
+      }
+      return `translate(${d.node.x},${d.node.y}) scale(0.6)`;
+    })
+    .remove();
+}
+
+function classesFor(d) {
+  const c = ["node", d.role];
+  if (d.chain) c.push(d.chain);
+  if (d.role === "layer" && expanded.has(d.node._uid)) c.push("expanded");
+  if (d.role === "sub" && activeSubUid === d.node._uid) c.push("active");
+  return c.join(" ");
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".popup") && !e.target.closest(".node")) {
+    if (activeSubUid) closePopup();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
